@@ -1,0 +1,14 @@
+*.jpg
+*.JPG
+*.png
+*.PNG
+*.jpeg
+*.JPEG
+*.xml
+*.XML
+*.hdf5
+*.h5
+data_tools
+*DS_Store
+*__pycache__
+*.sh

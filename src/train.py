@@ -22,8 +22,8 @@ def filtered_data(in_datas):
 def main():
     print("Loading training data...")
 
-    train_generator = data_helper.MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE)
-    val_generator = data_helper.MY_Generator(config.VAL_LOC,config.BATCH_SIZE,config.INPUT_SHAPE)
+    train_generator = data_helper.MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE,training=True)
+    val_generator = data_helper.MY_Generator(config.VAL_LOC,config.BATCH_SIZE,config.INPUT_SHAPE,training=False)
     print("Finished loading training data.")
     model = model_keras.craft()
 #    model.load_weights(config.CHECKPOINT_PATH, by_name=True, skip_mismatch=True)

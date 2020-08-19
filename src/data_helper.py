@@ -1,14 +1,17 @@
+import os.path
+from pathlib import Path
+from math import exp, cos, sin
+
 import cv2
 import numpy as np
-from math import exp, cos, sin
 import matplotlib.pyplot as plt
-from .image_reader import _padding_image, _get_images
-from .config import config
-from pathlib import Path
-import os.path
 import xml.etree.ElementTree as ET
 from keras.utils import Sequence
+import albumentations as A
+import random
 
+from .image_reader import _padding_image, _get_images
+from .config import config
 
 def get_gaussian_grayscale_mask():
     """ 
@@ -126,15 +129,30 @@ def padded_to_multiple(in_im):
     return out_im
 
 class MY_Generator(Sequence):
-
-    def __init__(self, dir_in, batch_size,input_shape):
-
+    def __init__(self, dir_in, batch_size, input_shape, training=False):
         self.image_filenames = _get_images(dir_in)
         self.batch_size = batch_size
         self.input_shape = input_shape
-    
+        self.training = training
+        
     def __len__(self):
         return int(np.ceil(len(self.image_filenames) / float(self.batch_size)))
+
+
+    def _augmented(self, image, mask):
+        # always train on crops
+        max_w = image.shape[1]
+        light = A.Compose([
+            A.RandomSizedCrop((320, max_w), 512, 512),
+            A.ShiftScaleRotate(),
+            A.Blur(),
+            # A.GaussNoise(),
+            A.ElasticTransform(border_mode=cv2.BORDER_REPLICATE),
+            A.MaskDropout((10,15), p=1),
+            A.Cutout(p=1)
+        ],p=1)
+        augmented = light(image=image,mask=mask)
+        return augmented['image'], augmented['mask']
 
     def __getitem__(self, idx):
         x_batch=[]
@@ -238,22 +256,24 @@ class MY_Generator(Sequence):
            
             #img = _padding_image(img, self.input_shape)
             img = cv2.resize(img, (self.input_shape[1],self.input_shape[0]))
-            img = np.expand_dims(img, -1)
+            mask = cv2.resize(mask, (img.shape[1],img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+            if self.training:
+                img, mask = self._augmented(img, mask)
 
             if has_anno:
                 # mask = _padding_image(mask, self.input_shape)
                 assert img.shape[0] % 2 == 0 and img.shape[1] % 2 == 0
                 mask = cv2.resize(mask, (img.shape[1]//2,img.shape[0]//2), interpolation=cv2.INTER_NEAREST)
-                mask = np.expand_dims(mask, -1)
 #                print("img shape", img.shape, self.input_shape)
             else:
                 print("{} DOESNT HAVE ANNOTATION".format(img_path))
                 mask = None
-            
-            # plt.imshow(np.squeeze(img))
-            # plt.show()
 
-     #       print(img_path)
+
+            
+            img = np.expand_dims(img, -1)
+            mask = np.expand_dims(mask, -1)
             x_batch.append(img)
             y_batch.append(mask)
             
@@ -262,6 +282,7 @@ class MY_Generator(Sequence):
 
 if __name__ == "__main__":
     train_generator = MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE)
-    train_generator.__getitem__(0)
+    for _ in range(10):
+        train_generator.__getitem__(25)
     pass
 

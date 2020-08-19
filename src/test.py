@@ -12,7 +12,7 @@ import numpy as np
 import cv2 as cv
 
 def validate():
-    test_gen = data_helper.MY_Generator('/home/huynd/Documents/hakaru/notebooks/output/ОlКp_1Тi_РФВаВш',config.BATCH_SIZE,config.INPUT_SHAPE)
+    test_gen = data_helper.MY_Generator('/home/huynd/Documents/hakaru/notebooks/output/ОlКp_1Тi_РФВаВш',config.BATCH_SIZE,config.INPUT_SHAPE,training=False)
     model = load_model(config.CHECKPOINT_PATH)
     model.summary()
     

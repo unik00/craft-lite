@@ -9,8 +9,7 @@ class Config():
         self.BOX_DILATION_RATIO = 0.3
         self.SIDE_DIVISOR = 32
         self.MAG_RATIO = 2
-        self.TRAIN_LOC = 'data/train'
-        self.TRAIN_LOC = '/home/huynd/Documents/hakaru/data/101a/hakaru_num_all'
+        self.TRAIN_LOC = 'data/hakaru_num_all'
         self.VAL_LOC = 'data/val'
         self.TEST_LOC = 'data/test'
         

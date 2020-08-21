@@ -10,7 +10,7 @@ from keras.utils import Sequence
 import albumentations as A
 import random
 
-from .image_reader import _padding_image, _get_images
+from .image_reader import _padding_image
 from .config import config
 
 def get_gaussian_grayscale_mask():
@@ -130,7 +130,7 @@ def padded_to_multiple(in_im):
 
 class MY_Generator(Sequence):
     def __init__(self, dir_in, batch_size, input_shape, training=False):
-        self.image_filenames = _get_images(dir_in)
+        self.image_filenames = self.get_images(dir_in)
         self.batch_size = batch_size
         self.input_shape = input_shape
         self.training = training
@@ -138,16 +138,51 @@ class MY_Generator(Sequence):
     def __len__(self):
         return int(np.ceil(len(self.image_filenames) / float(self.batch_size)))
 
+    def get_images(self, dir_in):
+        ''' Get the images in a directory RECURSIVELY, ignore images without .xml extentions
+        Parameters
+        ----------
+        dir_in : str
+            Root directory to be search from
+
+        Returns
+        ----------
+        filtered_img_files : list of str
+        '''
+
+        img_exts = ['jpg', 'jpeg', 'png', 'webp', 'gif']
+        all_img_files = []
+
+        # get all img files    
+        for img_ext in img_exts:
+            all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.lower())))
+            all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.upper())))
+        
+
+        filtered_img_files = []
+
+        for img_file in all_img_files:
+            anno_path = '.'.join(str(img_file).split('.')[:-1]) + ".xml"
+            if os.path.exists(anno_path):
+                filtered_img_files.append(str(img_file))
+            else:
+                print("CANNOT FIND ANNOTATION FOR {}, SKIPPED".format(str(img_file)))
+        
+        # print(filtered_img_files)
+
+        return filtered_img_files
 
     def _augmented(self, image, mask):
         # always train on crops
-        max_w = image.shape[1]
+        max_w = min(image.shape[0], image.shape[1])
+
         light = A.Compose([
             A.RandomSizedCrop((320, max_w), 512, 512),
             A.ShiftScaleRotate(),
             A.Blur(),
             # A.GaussNoise(),
-            A.ElasticTransform(border_mode=cv2.BORDER_REPLICATE),
+            # A.ElasticTransform(border_mode=cv2.BORDER_REPLICATE),
+            A.ElasticTransform(),
             A.MaskDropout((10,15), p=1),
             A.Cutout(p=1)
         ],p=1)
@@ -168,17 +203,22 @@ class MY_Generator(Sequence):
             original_im = cv2.imread(img_path)
             img = cv2.imread(img_path)
 
-            if self.batch_size == 1:
-                self.input_shape = (int(img.shape[0] * config.MAG_RATIO), int(img.shape[1] * config.MAG_RATIO), 1)
-                if max(self.input_shape[0], self.input_shape[1]) > config.MAX_SIDE:
-                    #print("resizing...")
-                    ratio = config.MAX_SIDE / max(self.input_shape[0], self.input_shape[1])
-                    self.input_shape = (int(self.input_shape[0] * ratio), int(self.input_shape[1] * ratio),self.input_shape[-1])
-                    #print(self.input_shape)
-                h = self.input_shape[0]
-                w = self.input_shape[1]
-                self.input_shape = (max(32,(h//32)*32),max(64,(w//32)*32),self.input_shape[-1])
+            assert self.batch_size == 1
+
+            # magnify the image, not yet actually resize 
+            self.input_shape = (int(img.shape[0] * config.MAG_RATIO), int(img.shape[1] * config.MAG_RATIO), 1)
             
+            # resize the image to config.MAX_SIDE if it's too large
+            if max(self.input_shape[0], self.input_shape[1]) > config.MAX_SIDE:
+                ratio = config.MAX_SIDE / max(self.input_shape[0], self.input_shape[1])
+                self.input_shape = (int(self.input_shape[0] * ratio), int(self.input_shape[1] * ratio),self.input_shape[-1])
+            
+            # make the image size multiple of 32, not yet actually resize        
+            h = self.input_shape[0]
+            w = self.input_shape[1]
+            self.input_shape = (max(32,(h//32)*32),max(64,(w//32)*32),self.input_shape[-1])
+            
+            # convert the image to gray and normalize it
             img = cv2.cvtColor(img,cv2.COLOR_RGB2GRAY) 
             img = img.astype(np.float64)
             img /= 255.0
@@ -254,23 +294,24 @@ class MY_Generator(Sequence):
             else:
                 has_anno = False
            
-            #img = _padding_image(img, self.input_shape)
             img = cv2.resize(img, (self.input_shape[1],self.input_shape[0]))
             mask = cv2.resize(mask, (img.shape[1],img.shape[0]), interpolation=cv2.INTER_NEAREST)
 
             if self.training:
                 img, mask = self._augmented(img, mask)
-
+                
+                plt.subplot(1,2,1)
+                plt.imshow(img)
+                plt.subplot(1,2,2)
+                plt.imshow(mask)
+                plt.show()
+                
             if has_anno:
-                # mask = _padding_image(mask, self.input_shape)
                 assert img.shape[0] % 2 == 0 and img.shape[1] % 2 == 0
                 mask = cv2.resize(mask, (img.shape[1]//2,img.shape[0]//2), interpolation=cv2.INTER_NEAREST)
-#                print("img shape", img.shape, self.input_shape)
             else:
                 print("{} DOESNT HAVE ANNOTATION".format(img_path))
                 mask = None
-
-
             
             img = np.expand_dims(img, -1)
             mask = np.expand_dims(mask, -1)
@@ -281,8 +322,8 @@ class MY_Generator(Sequence):
 
 
 if __name__ == "__main__":
-    train_generator = MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE)
+    train_generator = MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE,training=True)
     for _ in range(10):
-        train_generator.__getitem__(25)
+        train_generator.__getitem__(300)
     pass
 

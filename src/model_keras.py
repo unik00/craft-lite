@@ -122,7 +122,7 @@ def craft():
     model = Model(input = inputs, output = final_conv4)
     model.compile(optimizer = Adadelta(lr = config.LEARNING_RATE), loss = 'mean_squared_error')
     print("Model compiled successfully.")
-    model.summary()
+#    model.summary()
     return model
 
 if __name__ == "__main__":

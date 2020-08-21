@@ -36,7 +36,8 @@ def five_fold_cv(dir_in):
     all_imgs = get_images(dir_in)
     random.shuffle(all_imgs)
     fraction = int(0.2 * len(all_imgs))
-
+    
+    result = dict()
 
     for i in range(0,5):
         val_generator = data_helper.MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=None, training=False)
@@ -71,8 +72,18 @@ def five_fold_cv(dir_in):
             workers              = 6,
             max_queue_size       = 12
             )
+        print("Result for fold {}: ".format(i + 1))
         print(history.history)
-
+        if i == 0:
+            result['val_loss'] = 0
+            result['loss'] = 0
+        result['val_loss'] += history.history['val_loss'][-1]
+        result['loss'] += history.history['loss'][-1]
+    
+    result['val_loss'] /= 5
+    result['loss'] /= 5
+    print("CV result:\n\t Train loss: {}, Validation loss: {}".format(result['loss'], result['val_loss']))
+    
 if __name__ == "__main__":
     # one_fold()
     five_fold_cv(config.TRAIN_LOC)

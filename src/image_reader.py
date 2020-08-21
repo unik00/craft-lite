@@ -5,15 +5,41 @@ import glob
 import numpy as np
 import unicodedata
 import random
+from pathlib import Path
 
+def get_images(dir_in):
+    ''' Get the images in a directory RECURSIVELY, ignore images without .xml extentions
+    Parameters
+    ----------
+    dir_in : str
+        Root directory to be search from
 
-def _get_images(dir_in):
-    files = []
-    for root,dirs,fs in os.walk(dir_in):
-        for f in fs:
-            if f[-4:] in ['.jpg', '.png', 'jpeg', '.JPG', 'JPEG', '.PNG']:
-                files.append(os.path.join(root,f))
-    return files
+    Returns
+    ----------
+    filtered_img_files : list of str
+    '''
+
+    img_exts = ['jpg', 'jpeg', 'png', 'webp', 'gif']
+    all_img_files = []
+
+    # get all img files    
+    for img_ext in img_exts:
+        all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.lower())))
+        all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.upper())))
+    
+
+    filtered_img_files = []
+
+    for img_file in all_img_files:
+        anno_path = '.'.join(str(img_file).split('.')[:-1]) + ".xml"
+        if os.path.exists(anno_path):
+            filtered_img_files.append(str(img_file))
+        else:
+            print("CANNOT FIND ANNOTATION FOR {}, SKIPPED".format(str(img_file)))
+    
+    # print(filtered_img_files)
+
+    return filtered_img_files
 
 def get_restore(image,shape,mask=None):
     net_h, net_w,net_c = shape if mask is None else mask.shape

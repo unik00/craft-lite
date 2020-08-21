@@ -1,30 +1,18 @@
+import random
+import numpy as np
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+
 #from matplotlib import pyplot as plt
 from . import data_helper
 from .config import config
 from . import model_keras
+from .image_reader import get_images
 
-import random
-import numpy as np
 
-from keras.callbacks import ModelCheckpoint, EarlyStopping
+def one_fold():
+    train_generator = data_helper.MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=config.TRAIN_LOC, training=True)
+    val_generator = data_helper.MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=config.VAL_LOC, training=False)
 
-def filtered_data(in_datas):
-        # filter images without annotations
-    datas = in_datas.copy()
-    for i in range(len(datas)):
-        if not datas[i][3]:
-            print("Cannot find annotation for {}, skip the image!".format(datas[i][4]))
-
-    valid_data_indexes = [i for i in range(len(datas)) if datas[i][3]]
-    datas = [datas[i] for i in valid_data_indexes]
-    return datas
-
-def main():
-    print("Loading training data...")
-
-    train_generator = data_helper.MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE,training=True)
-    val_generator = data_helper.MY_Generator(config.VAL_LOC,config.BATCH_SIZE,config.INPUT_SHAPE,training=False)
-    print("Finished loading training data.")
     model = model_keras.craft()
 #    model.load_weights(config.CHECKPOINT_PATH, by_name=True, skip_mismatch=True)
 
@@ -43,6 +31,47 @@ def main():
         max_queue_size       = 12
         )
 
+def five_fold_cv(dir_in):
+	random.seed(11)
+	all_imgs = get_images(dir_in)
+	random.shuffle(all_imgs)
+	fraction = int(0.2 * len(all_imgs))
+
+
+    for i in range(0,5):
+    	print("-------FOLD {}----------".format(i + 1))
+		val_generator = data_helper.MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=None, training=False)
+
+		val_left = i*fraction
+		val_right = (i+1)*fraction
+	    val_generator.image_filenames = all_imgs[val_left:val_right]
+	    val_generator.image_filenames = all_imgs[i*fraction : (i+1)*fraction]
+	    print("Length val_generator for fold {}: {}".format(i + 1, len(val_generator.image_filenames)))
+
+	    train_generator = data_helper.MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=None, training=True)
+	    train_generator.image_filenames = all_imgs[:val_left] + [val_right:]
+	    print("Length train_generator for fold {}: {}".format(i + 1, len(train_generator.image_filenames)))
+
+	    model = model_keras.craft()
+	    #model.load_weights(config.CHECKPOINT_PATH, by_name=True, skip_mismatch=True)
+
+	    checkpoint_fold_path = '.'.join(config.CHECKPOINT_PATH.split('.')[:-1]) + "_f{}.h5".format(i+1)
+
+	    # Save the model according to the conditions
+	    checkpoint = ModelCheckpoint(checkpoint_fold_path, monitor='loss', verbose=1, save_best_only=True,
+	                                    save_weights_only=False, mode='auto', period=1)
+	    early = EarlyStopping(monitor='loss', min_delta=0, patience=max(10, config.NUM_EPOCH // 5), verbose=1, mode='auto')
+
+	    # Train the model
+	    history = model.fit_generator(
+	        generator            = train_generator,
+	        epochs               = config.NUM_EPOCH,
+	        validation_data      = val_generator,
+	        callbacks            = [checkpoint, early],
+	        workers              = 6,
+	        max_queue_size       = 12
+	        )
 
 if __name__ == "__main__":
-    main()
+	# one_fold()
+	five_folder_cv()

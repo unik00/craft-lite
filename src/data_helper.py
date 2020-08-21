@@ -10,7 +10,7 @@ from keras.utils import Sequence
 import albumentations as A
 import random
 
-from .image_reader import _padding_image
+from .image_reader import _padding_image, get_images
 from .config import config
 
 def get_gaussian_grayscale_mask():
@@ -129,60 +129,28 @@ def padded_to_multiple(in_im):
     return out_im
 
 class MY_Generator(Sequence):
-    def __init__(self, dir_in, batch_size, input_shape, training=False):
-        self.image_filenames = self.get_images(dir_in)
+    def __init__(self, batch_size, input_shape, dir_in=None, training=False, debug=False):
+        if dir_in:
+            self.image_filenames = get_images(dir_in)
         self.batch_size = batch_size
         self.input_shape = input_shape
         self.training = training
-        
+        self.debug = debug
+
     def __len__(self):
         return int(np.ceil(len(self.image_filenames) / float(self.batch_size)))
-
-    def get_images(self, dir_in):
-        ''' Get the images in a directory RECURSIVELY, ignore images without .xml extentions
-        Parameters
-        ----------
-        dir_in : str
-            Root directory to be search from
-
-        Returns
-        ----------
-        filtered_img_files : list of str
-        '''
-
-        img_exts = ['jpg', 'jpeg', 'png', 'webp', 'gif']
-        all_img_files = []
-
-        # get all img files    
-        for img_ext in img_exts:
-            all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.lower())))
-            all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.upper())))
-        
-
-        filtered_img_files = []
-
-        for img_file in all_img_files:
-            anno_path = '.'.join(str(img_file).split('.')[:-1]) + ".xml"
-            if os.path.exists(anno_path):
-                filtered_img_files.append(str(img_file))
-            else:
-                print("CANNOT FIND ANNOTATION FOR {}, SKIPPED".format(str(img_file)))
-        
-        # print(filtered_img_files)
-
-        return filtered_img_files
 
     def _augmented(self, image, mask):
         # always train on crops
         max_w = min(image.shape[0], image.shape[1])
 
         light = A.Compose([
-            A.RandomSizedCrop((320, max_w), 512, 512),
-            A.ShiftScaleRotate(),
+            # A.RandomSizedCrop((320, max_w), 512, 512),
+            # A.ShiftScaleRotate(border_mode=cv2.BORDER_CONSTANT, value=1),
             A.Blur(),
             # A.GaussNoise(),
             # A.ElasticTransform(border_mode=cv2.BORDER_REPLICATE),
-            A.ElasticTransform(),
+            # A.ElasticTransform(border_mode=cv2.BORDER_CONSTANT, value=1),
             A.MaskDropout((10,15), p=1),
             A.Cutout(p=1)
         ],p=1)
@@ -299,13 +267,13 @@ class MY_Generator(Sequence):
 
             if self.training:
                 img, mask = self._augmented(img, mask)
-                
-                plt.subplot(1,2,1)
-                plt.imshow(img)
-                plt.subplot(1,2,2)
-                plt.imshow(mask)
-                plt.show()
-                
+                if self.debug:    
+                    plt.subplot(1,2,1)
+                    plt.imshow(img)
+                    plt.subplot(1,2,2)
+                    plt.imshow(mask)
+                    plt.show()
+                    
             if has_anno:
                 assert img.shape[0] % 2 == 0 and img.shape[1] % 2 == 0
                 mask = cv2.resize(mask, (img.shape[1]//2,img.shape[0]//2), interpolation=cv2.INTER_NEAREST)
@@ -322,8 +290,8 @@ class MY_Generator(Sequence):
 
 
 if __name__ == "__main__":
-    train_generator = MY_Generator(config.TRAIN_LOC,config.BATCH_SIZE,config.INPUT_SHAPE,training=True)
+    train_generator = MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=config.TRAIN_LOC, training=True, debug=True)
     for _ in range(10):
-        train_generator.__getitem__(300)
+        train_generator.__getitem__(110)
     pass
 

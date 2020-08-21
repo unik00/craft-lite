@@ -20,7 +20,8 @@ class Config():
         self.DEFAULT_GAUSSIAN_MASK_SIDE = 256
         self.BATCH_SIZE = 1
             # At this version, batch_size must be 1 
-        self.NUM_EPOCH = 500
+
+        self.NUM_EPOCH = 10
         self.LEARNING_RATE = 1
         self.SAVE_GAP = 10
 

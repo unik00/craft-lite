@@ -1,6 +1,7 @@
 import random
 import numpy as np
 from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras import backend as K
 
 #from matplotlib import pyplot as plt
 from . import data_helper
@@ -79,6 +80,8 @@ def five_fold_cv(dir_in):
             result['loss'] = 0
         result['val_loss'] += history.history['val_loss'][-1]
         result['loss'] += history.history['loss'][-1]
+        K.clear_session()
+        del model
     
     result['val_loss'] /= 5
     result['loss'] /= 5

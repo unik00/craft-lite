@@ -20,7 +20,7 @@ class Config():
         self.BATCH_SIZE = 1
             # At this version, batch_size must be 1 
 
-        self.NUM_EPOCH = 1
+        self.NUM_EPOCH = 100
         self.LEARNING_RATE = 1
         self.SAVE_GAP = 10
 

@@ -37,7 +37,7 @@ def get_boxes(binary_map, origin_im, debug_name):
     ----------
     ret : boxes
     """
-    _, cnts, hierarchy = cv.findContours(binary_map, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    cnts, hierarchy = cv.findContours(binary_map, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     
     ret = []
     for cnt in cnts:

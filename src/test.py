@@ -12,17 +12,30 @@ import numpy as np
 import cv2 as cv
 
 def validate():
-    test_gen = data_helper.MY_Generator('/home/huynd/Documents/hakaru/notebooks/output/ОlКp_1Тi_РФВаВш',config.BATCH_SIZE,config.INPUT_SHAPE,training=False)
-    model = load_model(config.CHECKPOINT_PATH)
-    model.summary()
-    
+    dir_in = '/home/huynd/Documents/hakaru/notebooks/output/vl'
+    test_gen = data_helper.MY_Generator(config.BATCH_SIZE,config.INPUT_SHAPE, dir_in=dir_in, training=False)
+
+    model = dict()
+    for i in range(5):
+        checkpoint_fold_path = '.'.join(config.CHECKPOINT_PATH.split('.')[:-1]) + "_f{}.h5".format(i+1)
+        model[i] = load_model(checkpoint_fold_path)
+        print("Loaded model {}.".format(i + 1))
+
     random.shuffle(test_gen.image_filenames)
 
     for i,_ in enumerate(test_gen.image_filenames):
+        print(test_gen.image_filenames[i])
         start_time = time.time()
         x_batch, _ = test_gen.__getitem__(i)
-        pred = model.predict(x_batch)
-        pred_im = np.squeeze(pred, axis=0)
+        pred_im = None
+        for j in range(5):
+            pred = model[j].predict(x_batch)
+            if j == 0:
+                pred_im = np.squeeze(pred, axis=0)
+            else:
+                pred_im += np.squeeze(pred, axis=0)
+
+        pred_im /= 5
         pred_im = posproc.normalized(pred_im)
 
         #fig = plt.figure()

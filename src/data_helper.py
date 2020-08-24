@@ -131,7 +131,11 @@ def padded_to_multiple(in_im):
 class MY_Generator(Sequence):
     def __init__(self, batch_size, input_shape, dir_in=None, training=False, debug=False):
         if dir_in:
-            self.image_filenames = get_images(dir_in)
+            if training:
+                self.image_filenames = get_images(dir_in, filter_label=True)
+            else:
+                self.image_filenames = get_images(dir_in, filter_label=False)
+
         self.batch_size = batch_size
         self.input_shape = input_shape
         self.training = training

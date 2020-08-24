@@ -7,7 +7,7 @@ import unicodedata
 import random
 from pathlib import Path
 
-def get_images(dir_in):
+def get_images(dir_in, filter_label=True):
     ''' Get the images in a directory RECURSIVELY, ignore images without .xml extentions
     Parameters
     ----------
@@ -27,17 +27,18 @@ def get_images(dir_in):
         all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.lower())))
         all_img_files += list(Path(dir_in).rglob('*.{}'.format(img_ext.upper())))
     
-
-    filtered_img_files = []
-
-    for img_file in all_img_files:
-        anno_path = '.'.join(str(img_file).split('.')[:-1]) + ".xml"
-        if os.path.exists(anno_path):
-            filtered_img_files.append(str(img_file))
-        else:
-            print("CANNOT FIND ANNOTATION FOR {}, SKIPPED".format(str(img_file)))
+    if not filter_label:
+        filtered_img_files = all_img_files
+    else:
+        filtered_img_files = []
+        for img_file in all_img_files:
+            anno_path = '.'.join(str(img_file).split('.')[:-1]) + ".xml"
+            if os.path.exists(anno_path):
+                filtered_img_files.append(str(img_file))
+            else:
+                print("CANNOT FIND ANNOTATION FOR {}, SKIPPED".format(str(img_file)))
     
-    # print(filtered_img_files)
+        # print(filtered_img_files)
 
     return filtered_img_files
 
